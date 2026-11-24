@@ -1,0 +1,65 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: kafka-admin
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://login.microsoftonline.com/8ea291c8-4670-4598-8f0f-b5e216b5b755/v2.0
+          audiences: c6445b4c-7863-42ac-a620-2fa3b5ea58d8
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
+    admin:
+      # Si Kafka no está arriba al iniciar, el servicio arranca igual y crea los tópicos después
+      fail-fast: false
+      auto-create: true
+      properties:
+        request.timeout.ms: 15000
+        default.api.timeout.ms: 20000
+
+app:
+  security:
+    cognito:
+      issuer-uri: ${COGNITO_ISSUER:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_GrYPmcDNr}
+      client-id: ${COGNITO_CLIENT_ID:60r3m35l2uqmmlfk5r1j5unhmo}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200,https://44.207.141.228}
+
+  # Tópicos que este servicio crea al arrancar. Cada flujo de datos tiene su propia
+  # retención según el valor del dato: las interacciones son mucho volumen y valen poco
+  # tiempo; los pagos son registro de auditoría y se guardan más.
+  kafka:
+    topicos:
+      - nombre: pedidos360.interacciones
+        particiones: 3
+        replicas: 3
+        configs:
+          retention.ms: "604800000"        # 7 días
+          cleanup.policy: delete
+          min.insync.replicas: "2"
+          compression.type: producer
+      - nombre: pedidos360.pagos
+        particiones: 3
+        replicas: 3
+        configs:
+          retention.ms: "2592000000"       # 30 días
+          cleanup.policy: delete
+          min.insync.replicas: "2"
+          compression.type: producer
+      - nombre: pedidos360.interacciones.DLT
+        particiones: 3
+        replicas: 3
+        configs:
+          retention.ms: "1209600000"       # 14 días para revisar los errores
+          cleanup.policy: delete
+          min.insync.replicas: "2"
+      - nombre: pedidos360.pagos.DLT
+        particiones: 3
+        replicas: 3
+        configs:
+          retention.ms: "2592000000"
+          cleanup.policy: delete
+          min.insync.replicas: "2"
